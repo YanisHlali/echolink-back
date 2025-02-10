@@ -5,6 +5,7 @@ const pool = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const signalementRoutes = require("./routes/signalementRoutes");
+const signalementAnswerRoutes = require("./routes/signalementAnswerRoutes");
 
 
 require("dotenv").config();
@@ -16,6 +17,7 @@ app.use(bodyParser.json());
 app.use("/auth", authRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/signalements", signalementRoutes);
+app.use("/signalementAnswers", signalementAnswerRoutes);
 
 
 
