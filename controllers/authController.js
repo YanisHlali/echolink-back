@@ -6,13 +6,13 @@ exports.register = async (req, res) => {
   const { email, name, lastName, password, longitude, latitude } = req.body;
 
   if (!email || !name || !lastName || !password) {
-    return res.status(400).json({ message: "Tous les champs sont obligatoires" });
+    return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
     const [existingUser] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
     if (existingUser.length > 0) {
-      return res.status(400).json({ message: "Cet email est déjà utilisé" });
+      return res.status(400).json({ message: "This email is already in use" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -22,10 +22,10 @@ exports.register = async (req, res) => {
       [email, name, lastName, hashedPassword, longitude || 0, latitude || 0]
     );
 
-    res.status(201).json({ message: "Utilisateur enregistré avec succès" });
+    res.status(201).json({ message: "User successfully registered" });
   } catch (error) {
-    console.error("Erreur d'inscription:", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -33,20 +33,20 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ message: "Email et mot de passe requis" });
+    return res.status(400).json({ message: "Email and password are required" });
   }
 
   try {
     const [users] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
     if (users.length === 0) {
-      return res.status(401).json({ message: "Identifiants incorrects" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const user = users[0];
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Identifiants incorrects" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
@@ -57,22 +57,25 @@ exports.login = async (req, res) => {
 
     res.json({ token });
   } catch (error) {
-    console.error("Erreur de connexion:", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 exports.getProfile = async (req, res) => {
   try {
-    const [users] = await pool.query("SELECT id, email, name, lastName, longitude, latitude, created_at FROM users WHERE id = ?", [req.user.id]);
-    
+    const [users] = await pool.query(
+      "SELECT id, email, name, lastName, longitude, latitude, created_at FROM users WHERE id = ?",
+      [req.user.id]
+    );
+
     if (users.length === 0) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.json(users[0]);
   } catch (error) {
-    console.error("Erreur lors de la récupération du profil:", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    console.error("Error retrieving user profile:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
