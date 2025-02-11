@@ -9,5 +9,6 @@ router.get("/", signalementController.getSignalements);
 router.get("/:id", signalementController.getSignalementById);
 router.put("/:id", authenticateToken, signalementController.updateSignalement);
 router.delete("/:id", authenticateToken, signalementController.deleteSignalement);
+router.put("/:id/close", authenticateToken, signalementController.closeSignalement);
 
 module.exports = router;
