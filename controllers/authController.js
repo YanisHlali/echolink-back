@@ -2,6 +2,9 @@ const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+const crypto = require("crypto");
+const emailService = require("../services/emailService");
+
 exports.register = async (req, res) => {
   const { email, name, lastName, password, longitude, latitude } = req.body;
 
@@ -16,18 +19,23 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
 
     await pool.query(
-      "INSERT INTO users (email, name, lastName, password, longitude, latitude) VALUES (?, ?, ?, ?, ?, ?)",
-      [email, name, lastName, hashedPassword, longitude || 0, latitude || 0]
+      "INSERT INTO users (email, name, lastName, password, longitude, latitude, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [email, name, lastName, hashedPassword, longitude || 0, latitude || 0, verificationToken]
     );
 
-    res.status(201).json({ message: "User successfully registered" });
+    // Send verification email
+    await emailService.sendVerificationEmail(email, verificationToken);
+
+    res.status(201).json({ message: "User registered. Please verify your email." });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
@@ -43,6 +51,10 @@ exports.login = async (req, res) => {
     }
 
     const user = users[0];
+
+    if (!user.is_verified) {
+      return res.status(403).json({ message: "Please verify your email before logging in." });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -62,6 +74,7 @@ exports.login = async (req, res) => {
   }
 };
 
+
 exports.getProfile = async (req, res) => {
   try {
     const [users] = await pool.query(
@@ -76,6 +89,30 @@ exports.getProfile = async (req, res) => {
     res.json(users[0]);
   } catch (error) {
     console.error("Error retrieving user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.verifyEmail = async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ message: "Invalid token" });
+  }
+
+  try {
+    const [user] = await pool.query("SELECT * FROM users WHERE verification_token = ?", [token]);
+
+    if (user.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    await pool.query("UPDATE users SET is_verified = TRUE, verification_token = NULL WHERE id = ?", [user[0].id]);
+
+    res.json({ message: "Email verified successfully!" });
+  } catch (error) {
+    console.error("Verification error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
