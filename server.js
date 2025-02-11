@@ -19,20 +19,8 @@ app.use("/categories", categoryRoutes);
 app.use("/signalements", signalementRoutes);
 app.use("/signalementAnswers", signalementAnswerRoutes);
 
-
-
 app.get("/", (req, res) => {
   res.send("EchoLink API is running!");
-});
-
-app.get("/test-db", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT 1 + 1 AS result");
-    res.json({ success: true, result: rows[0].result });
-  } catch (error) {
-    console.error("Erreur de connexion à la BDD:", error);
-    res.status(500).json({ success: false, message: "Connexion à MySQL échouée", error });
-  }
 });
 
 // Pour exécuter les tests sans lancer le serveur

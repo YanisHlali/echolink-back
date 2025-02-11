@@ -1,24 +1,15 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "server.js",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "server.js"
-      }
-    ],
-    "env": {
-      "PORT": "3000",
-      "DB_HOST": "DB_HOST",
-      "DB_USER": "DB_USER",
-      "DB_PWD": "DB_PWD",
-      "DB_DATABASE": "DB_DATABASE",
-      "JWT_SECRET": "JWT_SECRET"
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
     }
-  }
-  
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ]
+}
