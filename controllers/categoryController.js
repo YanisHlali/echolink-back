@@ -8,12 +8,12 @@ exports.createCategory = async (req, res) => {
   }
 
   try {
-    const [existingCategory] = await pool.query("SELECT * FROM category WHERE name = ?", [name]);
+    const [existingCategory] = await pool.query("SELECT * FROM categories WHERE name = ?", [name]);
     if (existingCategory.length > 0) {
       return res.status(400).json({ message: "Category already exists" });
     }
 
-    await pool.query("INSERT INTO category (name) VALUES (?)", [name]);
+    await pool.query("INSERT INTO categories (name) VALUES (?)", [name]);
     res.status(201).json({ message: "Category created successfully" });
   } catch (error) {
     console.error("Error creating category:", error);
@@ -23,7 +23,7 @@ exports.createCategory = async (req, res) => {
 
 exports.getCategories = async (req, res) => {
   try {
-    const [categories] = await pool.query("SELECT * FROM category");
+    const [categories] = await pool.query("SELECT * FROM categories");
     res.json(categories);
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -35,7 +35,7 @@ exports.getCategoryById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [categories] = await pool.query("SELECT * FROM category WHERE id = ?", [id]);
+    const [categories] = await pool.query("SELECT * FROM categories WHERE id = ?", [id]);
     if (categories.length === 0) {
       return res.status(404).json({ message: "Category not found" });
     }
@@ -55,7 +55,7 @@ exports.updateCategory = async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query("UPDATE category SET name = ? WHERE id = ?", [name, id]);
+    const [result] = await pool.query("UPDATE categories SET name = ? WHERE id = ?", [name, id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Category not found" });
@@ -72,7 +72,7 @@ exports.deleteCategory = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [result] = await pool.query("DELETE FROM category WHERE id = ?", [id]);
+    const [result] = await pool.query("DELETE FROM categories WHERE id = ?", [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Category not found" });
