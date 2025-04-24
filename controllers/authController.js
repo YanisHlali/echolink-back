@@ -116,3 +116,21 @@ exports.verifyEmail = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.getUserInfo = async (req, res) => {
+  try {
+    const [users] = await pool.query(
+      "SELECT id, name, lastName FROM users WHERE id = ?",
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    }
+
+    res.json(users[0]);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des infos utilisateur :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};

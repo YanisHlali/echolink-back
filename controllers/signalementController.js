@@ -1,157 +1,212 @@
 const pool = require("../config/db");
+const chatController = require("./chatController");
 
-exports.createSignalement = async (req, res) => {
-  const { catId, description, priorityLevel, longitude, latitude } = req.body;
+const signalementController = {
+  createSignalement: async (req, res) => {
+    try {
+      const { title, description, latitude, longitude, category_id, priority_level } = req.body;
+      const user_id = req.user.id;
 
-  if (!catId || !description || !priorityLevel) {
-    return res.status(400).json({ message: "Category, description, and priority level are required" });
-  }
+      if (!title || !description || !latitude || !longitude || !category_id || !priority_level || !user_id) {
+        console.error('Données manquantes:', {
+          title: !title,
+          description: !description,
+          latitude: !latitude,
+          longitude: !longitude,
+          category_id: !category_id,
+          priority_level: !priority_level,
+          user_id: !user_id
+        });
+        return res.status(400).json({ message: "Données manquantes" });
+      }
 
-  try {
-    await pool.query(
-      "INSERT INTO signalement (userId, catId, description, priorityLevel, longitude, latitude, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-      [req.user.id, catId, description, priorityLevel, longitude || 0, latitude || 0]
-    );
-    res.status(201).json({ message: "Signalement created successfully" });
-  } catch (error) {
-    console.error("Error creating signalement:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+      const [result] = await pool.query(
+        `INSERT INTO signalements (title, description, latitude, longitude, category_id, priority_level, user_id, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'open')`,
+        [title, description, latitude, longitude, category_id, priority_level, user_id]
+      );
 
-exports.getSignalements = async (req, res) => {
-  try {
-    const [signalements] = await pool.query(`
-      SELECT 
-        s.id, 
-        s.description, 
-        s.priorityLevel, 
-        s.longitude, 
-        s.latitude, 
-        s.created_at, 
-        s.closed_at,
+      const [newSignalement] = await pool.query(
+        `SELECT s.*, c.name as category_name, u.name as user_name, u.lastName as user_lastName
+         FROM signalements s
+         LEFT JOIN categories c ON s.category_id = c.id
+         LEFT JOIN users u ON s.user_id = u.id
+         WHERE s.id = ?`,
+        [result.insertId]
+      );
 
-        u.id AS userId, 
-        u.name AS userName, 
-        u.lastName AS userLastName, 
-        u.email AS userEmail,
+      res.status(201).json(newSignalement[0]);
+    } catch (error) {
+      console.error("Erreur détaillée lors de la création du signalement:", error);
+      console.error("Stack trace:", error.stack);
+      res.status(500).json({ 
+        message: "Erreur lors de la création du signalement",
+        details: error.message
+      });
+    }
+  },
 
-        c.id AS categoryId, 
-        c.name AS categoryName
-      FROM signalement s
-      JOIN users u ON s.userId = u.id
-      JOIN category c ON s.catId = c.id
-      ORDER BY s.created_at DESC
-    `);
+  getSignalements: async (req, res) => {
+    try {
+      const [signalements] = await pool.query(
+        `SELECT s.*, 
+                c.name as categoryName,
+                u.name as userName, 
+                u.lastName as userLastName
+         FROM signalements s
+         LEFT JOIN categories c ON s.category_id = c.id
+         LEFT JOIN users u ON s.user_id = u.id
+         ORDER BY s.created_at DESC`
+      );
       res.json(signalements);
-  } catch (error) {
-    console.error("Error fetching signalements:", error);
-    res.status(500).json({ message: "Server error" });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des signalements:', error);
+      res.status(500).json({ message: "Erreur lors de la récupération des signalements" });
+    }
+  },
+
+  getSignalement: async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [signalements] = await pool.query(
+        `SELECT s.*, 
+                c.name as categoryName,
+                c.id as category_id,
+                u.name as userName, 
+                u.lastName as userLastName
+         FROM signalements s
+         LEFT JOIN categories c ON s.category_id = c.id
+         LEFT JOIN users u ON s.user_id = u.id
+         WHERE s.id = ?`,
+        [id]
+      );
+
+      if (signalements.length === 0) {
+        return res.status(404).json({ message: "Signalement non trouvé" });
+      }
+      res.json(signalements[0]);
+    } catch (error) {
+      console.error('Erreur lors de la récupération du signalement:', error);
+      res.status(500).json({ message: "Erreur lors de la récupération du signalement" });
+    }
+  },
+
+  updateSignalement: async (req, res) => {
+    try {
+      const { title, description, status, priority_level, latitude, longitude } = req.body;
+      const signalementId = req.params.id;
+
+      const [signalement] = await pool.query(
+        "SELECT user_id FROM signalements WHERE id = ?",
+        [signalementId]
+      );
+
+      if (signalement.length === 0) {
+        return res.status(404).json({ message: "Signalement non trouvé" });
+      }
+
+      if (signalement[0].user_id !== req.user.id) {
+        return res.status(403).json({ message: "Non autorisé à modifier ce signalement" });
+      }
+
+      await pool.query(
+        `UPDATE signalements 
+         SET title = COALESCE(?, title),
+             description = COALESCE(?, description),
+             status = COALESCE(?, status),
+             priority_level = COALESCE(?, priority_level),
+             latitude = COALESCE(?, latitude),
+             longitude = COALESCE(?, longitude),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [title, description, status, priority_level, latitude, longitude, signalementId]
+      );
+
+      const [updatedSignalement] = await pool.query(
+        `SELECT s.*, 
+                c.name as category_name,
+                u.name as user_name,
+                u.lastName as user_lastName
+         FROM signalements s
+         LEFT JOIN categories c ON s.category_id = c.id
+         LEFT JOIN users u ON s.user_id = u.id
+         WHERE s.id = ?`,
+        [signalementId]
+      );
+
+      res.json(updatedSignalement[0]);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du signalement:", error);
+      res.status(500).json({ message: "Erreur lors de la mise à jour du signalement" });
+    }
+  },
+
+  deleteSignalement: async (req, res) => {
+    try {
+      const signalementId = req.params.id;
+
+      const [signalement] = await pool.query(
+        "SELECT user_id FROM signalements WHERE id = ?",
+        [signalementId]
+      );
+
+      if (signalement.length === 0) {
+        return res.status(404).json({ message: "Signalement non trouvé" });
+      }
+
+      if (signalement[0].user_id !== req.user.id) {
+        return res.status(403).json({ message: "Non autorisé à supprimer ce signalement" });
+      }
+
+      await pool.query("DELETE FROM signalements WHERE id = ?", [signalementId]);
+
+      res.json({ message: "Signalement supprimé avec succès" });
+    } catch (error) {
+      console.error("Erreur lors de la suppression du signalement:", error);
+      res.status(500).json({ message: "Erreur lors de la suppression du signalement" });
+    }
+  },
+
+  getCategories: async (req, res) => {
+    try {
+      const [categories] = await pool.query("SELECT * FROM categories");
+      res.json(categories);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des catégories:", error);
+      res.status(500).json({ message: "Erreur lors de la récupération des catégories" });
+    }
+  },
+
+  closeSignalement: async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [signalement] = await pool.query(
+        "SELECT user_id FROM signalements WHERE id = ?",
+        [id]
+      );
+
+      if (signalement.length === 0) {
+        return res.status(404).json({ message: "Signalement non trouvé" });
+      }
+
+      if (signalement[0].user_id !== req.user.id) {
+        return res.status(403).json({ message: "Non autorisé à fermer ce signalement" });
+      }
+
+      await pool.query(
+        "UPDATE signalements SET status = 'closed', closed_at = NOW() WHERE id = ?",
+        [id]
+      );
+
+      await chatController.closeChat(id);
+
+      res.json({ message: "Signalement fermé avec succès" });
+    } catch (error) {
+      console.error("Erreur lors de la fermeture du signalement:", error);
+      res.status(500).json({ message: "Erreur lors de la fermeture du signalement" });
+    }
   }
 };
 
-exports.getSignalementById = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-
-    const [signalements] = await pool.query(`
-      SELECT 
-        s.id, 
-        s.description, 
-        s.priorityLevel, 
-        s.longitude, 
-        s.latitude, 
-        s.created_at, 
-        s.closed_at,
-        -- Détails de l'utilisateur
-        u.id AS userId, 
-        u.name AS userName, 
-        u.lastName AS userLastName, 
-        u.email AS userEmail,
-        -- Détails de la catégorie
-        c.id AS categoryId, 
-        c.name AS categoryName
-      FROM signalement s
-      JOIN users u ON s.userId = u.id
-      JOIN category c ON s.catId = c.id
-      WHERE s.id = ?
-    `, [id]);
-    if (signalements.length === 0) {
-      return res.status(404).json({ message: "Signalement not found" });
-    }
-    res.json(signalements[0]);
-  } catch (error) {
-    console.error("Error fetching signalement:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-exports.updateSignalement = async (req, res) => {
-  const { id } = req.params;
-  const { catId, description, priorityLevel, longitude, latitude } = req.body;
-
-  if (!catId || !description || !priorityLevel) {
-    return res.status(400).json({ message: "Category, description, and priority level are required" });
-  }
-
-  try {
-    const [result] = await pool.query(
-      "UPDATE signalement SET catId = ?, description = ?, priorityLevel = ?, longitude = ?, latitude = ? WHERE id = ? AND userId = ?",
-      [catId, description, priorityLevel, longitude, latitude, id, req.user.id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Signalement not found or you are not the owner" });
-    }
-
-    res.json({ message: "Signalement updated successfully" });
-  } catch (error) {
-    console.error("Error updating signalement:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-exports.deleteSignalement = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [result] = await pool.query("DELETE FROM signalement WHERE id = ? AND userId = ?", [id, req.user.id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Signalement not found or you are not the owner" });
-    }
-
-    res.json({ message: "Signalement deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting signalement:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-exports.closeSignalement = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // Check if the signalement exists and belongs to the user
-    const [signalement] = await pool.query("SELECT userId, closed_at FROM signalement WHERE id = ?", [id]);
-
-    if (signalement.length === 0) {
-      return res.status(404).json({ message: "Signalement not found" });
-    }
-
-
-    if (signalement[0].closed_at !== null) {
-      return res.status(400).json({ message: "Signalement is already closed" });
-    }
-
-    // Close the signalement
-    await pool.query("UPDATE signalement SET closed_at = NOW() WHERE id = ?", [id]);
-
-    res.json({ message: "Signalement closed successfully" });
-  } catch (error) {
-    console.error("Error closing signalement:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+module.exports = signalementController;
 
