@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const signalementRoutes = require("./routes/signalementRoutes");
 const signalementAnswerRoutes = require("./routes/signalementAnswerRoutes");
+const chatController = require("./controllers/chatController");
 
 require("dotenv").config();
 
