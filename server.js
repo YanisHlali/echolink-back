@@ -58,9 +58,9 @@ app.use(cors());
 app.use(bodyParser.json());
 
 app.use("/api/auth", authRoutes);
-app.use("/categories", categoryRoutes);
-app.use("/signalements", signalementRoutes);
-app.use("/signalementAnswers", signalementAnswerRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/signalements", signalementRoutes);
+app.use("/api/signalementAnswers", signalementAnswerRoutes);
 
 app.get("/", (req, res) => {
   res.send("EchoLink API is running!");
