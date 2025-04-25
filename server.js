@@ -6,6 +6,8 @@ const bodyParser = require("body-parser");
 const pool = require("./config/db");
 const jwt = require("jsonwebtoken");
 
+const signalementController = require("./controllers/signalementController");
+
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const signalementRoutes = require("./routes/signalementRoutes");
@@ -222,6 +224,8 @@ io.on("connection", (socket) => {
     console.log('User disconnected:', socket.user.email);
   });
 });
+
+signalementController.setSocket(io);
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;

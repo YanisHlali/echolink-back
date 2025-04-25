@@ -1,3 +1,8 @@
+let io;
+function setSocket(socketIO) {
+  io = socketIO;
+}
+
 const pool = require("../config/db");
 const chatController = require("./chatController");
 
@@ -35,11 +40,19 @@ const signalementController = {
         [result.insertId]
       );
 
+      const socketId = req.headers['x-socket-id'];
+
+      if (socketId && io.sockets.sockets.get(socketId)) {
+        io.sockets.sockets.get(socketId).broadcast.emit('newSignalement', newSignalement[0]);
+      } else {
+        io.emit('newSignalement', newSignalement[0]);
+      }
+
       res.status(201).json(newSignalement[0]);
     } catch (error) {
       console.error("Erreur détaillée lors de la création du signalement:", error);
       console.error("Stack trace:", error.stack);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la création du signalement",
         details: error.message
       });
@@ -208,5 +221,7 @@ const signalementController = {
   }
 };
 
-module.exports = signalementController;
-
+module.exports = {
+  ...signalementController,
+  setSocket,
+};

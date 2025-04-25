@@ -120,7 +120,7 @@ exports.verifyEmail = async (req, res) => {
 exports.getUserInfo = async (req, res) => {
   try {
     const [users] = await pool.query(
-      "SELECT id, name, lastName FROM users WHERE id = ?",
+      "SELECT id, email, name, lastName FROM users WHERE id = ?",
       [req.user.id]
     );
 
