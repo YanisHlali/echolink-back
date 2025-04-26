@@ -7,18 +7,18 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    pass: process.env.SMTP_PASS,
   },
   tls: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
 exports.sendVerificationEmail = async (email, token) => {
   const verificationLink = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}`;
 
   const mailOptions = {
-    from: `"Équipe Vérification" <${process.env.SMTP_USER}>`,
+    from: `"Équipe Vérification Echolink" <postmaster@yanis-mail.fr>`,
     to: email,
     subject: "🔐 Vérifie ton adresse email",
     html: `
